@@ -1,4 +1,3 @@
-import database.Image
 import java.io.File
 import scala.collection.immutable.List
 import scala.collection.mutable
@@ -59,6 +58,7 @@ object database extends App {
         }
       }
     )
+    
     Await.result(Future.sequence(futures.toSet), Duration.Inf).flatten
   }
 
@@ -71,11 +71,11 @@ object database extends App {
     img.nbrs = newNbrs
   }
   def updateNbrs(allImages: Set[Image]): Unit = {
-    val futures = for (i <- allImages) yield Future { updateNbrsHelper(allImages, i) }
+    val futures = for (i <- allImages) yield Future { updateNbrsHelper(allImages.toSet, i) }
     Await.result(Future.sequence(futures), Duration.Inf)
   }
 
-  val file = new File("C:\\Users\\Admin\\Documents\\Project\\tileSet")
+  val file = new File("/Users/nathans./Documents/FunPar/funpar-t2-22-project-future-collapse-master/tileSet")
   val x = loadImage(file)
   val perms = allPerm(x)
   updateNbrs(perms)
