@@ -6,10 +6,13 @@ import scala.collection.mutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.util.Random
 
 import scala.concurrent.Future
 
 object imageBuilder extends App {
+
+  type Point = (Int,Int)
 
   case class Board(x: Int, y: Int, p: Set[Image]) {
     val Xlen = x
@@ -42,24 +45,23 @@ object imageBuilder extends App {
 
     def valid(x: Int, y: Int): Boolean = (x, y) match {
       case (i, j) if i < 0 || j < 0 => false
-      case (i, j) if i > Xlen || j > Ylen => false
+      case (i, j) if i >= Xlen || j >= Ylen => false
       case _ => true
     }
 
-    def complete(x: Int, y: Int): Boolean = board(x)(y).size match {
-      case 1 => true
-      case _ => false
+    def complete(x: Int, y: Int): Boolean = {
+      if (valid(x,y)) (board(x)(y).size == 1) else false
     }
 
     def updateHelper(nbrSet: Set[Image], current: Set[Image], relativeDir: String): Set[Image] = {
-      val newNbrSet = mutable.Set[Image]()
-      for (c <- current) {
-        newNbrSet ++ nbrSet.filter(i => i.nbrs.get(relativeDir).contains(c))
+      val newNbrArray : Array[Set[Image]] = Array.fill(current.size)(Set())
+      for ((c,idx) <- current.zipWithIndex) {
+        newNbrArray(idx) = nbrSet.filter(i => i.nbrs.get(relativeDir).contains(c))
       }
-      newNbrSet.toSet
+      newNbrArray.toSet.flatten
     }
 
-    def updateNbrs(x: Int, y: Int): Unit = {
+    def updateNbrs(x: Int, y: Int): (Point,Point,Point,Point) = {
       val current = board(x)(y)
       val nbrUp = if (valid(x, y - 1) && !complete(x, y - 1)) Some(board(x)(y - 1)) else None
       val nbrRight = if (valid(x + 1, y) && !complete(x + 1, y)) Some(board(x + 1)(y)) else None
@@ -67,23 +69,59 @@ object imageBuilder extends App {
       val nbrLeft = if (valid(x - 1, y) && !complete(x - 1, y)) Some(board(x - 1)(y)) else None
 
       val thread1 = new Thread {
-        override def run(): Unit = if (nbrUp.isDefined) board(x)(y - 1) = updateHelper(nbrUp.get, current, "down")
+        override def run(): Unit = if (nbrUp != None) board(x)(y - 1) = updateHelper(nbrUp.get, current, "down")
       }
       val thread2 = new Thread {
-        override def run(): Unit = if (nbrRight.isDefined) board(x + 1)(y) = updateHelper(nbrUp.get, current, "left")
+        override def run(): Unit = if (nbrRight != None) board(x + 1)(y) = updateHelper(nbrRight.get, current, "left")
       }
       val thread3 = new Thread {
-        override def run(): Unit = if (nbrDown.isDefined) board(x)(y + 1) = updateHelper(nbrUp.get, current, "up")
+        override def run(): Unit = if (nbrDown != None) board(x)(y + 1) = updateHelper(nbrDown.get, current, "up")
       }
       val thread4 = new Thread {
-        override def run(): Unit = if (nbrLeft.isDefined) board(x - 1)(y) = updateHelper(nbrUp.get, current, "right")
+        override def run(): Unit = if (nbrLeft != None) board(x - 1)(y) = updateHelper(nbrLeft.get, current, "right")
       }
 
       val threads = List(thread1, thread2, thread3, thread4)
       threads.foreach(_.start())
       threads.foreach(_.join())
+
+      ((x, y - 1),(x + 1, y),(x, y + 1),(x - 1, y))
     }
 
-    def start(): Any = {}
+    def updateLoop(nbrs : List[Point]): Unit = nbrs.forall((x,y) => !valid(x,y)) match {
+      case true => ()
+      case false => {
+        val valids : List[Point] = nbrs.filter((i,j) => valid(i,j))
+        val futures = for(p <- valids) yield Future {updateNbrs(p._1,p._2)}
+        val nbrSq = Await.result(Future.sequence(futures),Duration.Inf)
+        nbrSq.foreach(x => {
+          val pointList  : List[Point] = x.toList
+          updateLoop(pointList)
+        })
+      }
+    }
+
+    def start(): Unit = {
+      val st = pick()
+      st match {
+        case None => ()
+        case Some((x,y)) => {
+          val current = board(x)(y).toArray
+          val random = new Random
+          board(x)(y) = Set(current(random.nextInt(current.size)))
+          val nbrs : List[Point] = updateNbrs(x,y).toList
+          updateLoop(nbrs)
+          start()
+        }
+      }
+    }
+
+    def print() : Unit = {
+      board.foreach( row => row.foreach(e => println(e)))
+    }
   }
+  //main
+  val board = new Board(2,2,perms)
+  board.start()
+  board.print()
 }
