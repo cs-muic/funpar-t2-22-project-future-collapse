@@ -1,19 +1,39 @@
-import database.*
+import database.{Tile, allPerm, loadImage, updateNbrs}
+import imageDisplay.*
+import java.awt.*
+import java.awt.geom.AffineTransform
+import java.awt.image.{AffineTransformOp, BufferedImage}
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+import javax.imageio.ImageIO
+import javax.swing.*
+import scala.collection.immutable.List
+import scala.collection.mutable
+import scala.collection.mutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.Random
-import java.util.concurrent.ConcurrentHashMap
+
 
 object imageBuilder extends App {
 
   type Point = (Int, Int)
 
   case class Board(x: Int, y: Int, p: Set[Tile]) {
-    val Xlen = x
-    val Ylen = y
-    val board = Array.fill(y)(Array.fill(x)(p));
+    private val Xlen = x
+    private val Ylen = y
+    val board: Array[Array[Set[Tile]]] = Array.fill(y)(Array.fill(x)(p))
+    var frame = new JFrame("Project Future{Collapse}: Wave Collapse Function")
+    var panel = new JPanel()
+    panel.setBackground(Color.darkGray)
+    frame.setSize(y * 64, x * 64)
+    panel.setSize(y * 64, x * 64)
+    panel.setLayout(null)
+    panel.setBorder(null)
+    frame.add(panel)
+    frame.setResizable(true)
+    frame.setVisible(true)
 
     def pick(): Option[(Int, Int)] = {
       var smallest: Option[(Int, Int)] = None
@@ -90,6 +110,26 @@ object imageBuilder extends App {
         }
       }
     }
+    
+    def JpanelUpdate(x: Int, y: Int): Unit = {
+      val readImage = ImageIO.read(board(x)(y).head.name)
+      val x_pos: Int = readImage.getWidth() / 2
+      val y_pos: Int = readImage.getHeight() / 2
+      val rotation = board(x)(y).head.rotate
+      val radians = Math.toRadians(rotation * 90)
+      val tx = AffineTransform.getRotateInstance(radians, x_pos, y_pos)
+      val op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BILINEAR)
+      val rotatedImage = op.filter(readImage, null)
+      val rotatedIcon = new ImageIcon(rotatedImage)
+      val label = new JLabel(rotatedIcon)
+      val labelWidth = rotatedIcon.getIconWidth
+      val labelHeight = rotatedIcon.getIconHeight
+      label.setSize(labelWidth, labelHeight)
+      label.setLocation(y * 64, x * 64)
+      panel.add(label)
+      panel.revalidate()
+      panel.repaint()
+    }
 
     def start(): Unit = {
       val pickS = System.nanoTime()
@@ -110,6 +150,7 @@ object imageBuilder extends App {
           Await.result(Future.sequence(futures),Duration.Inf)
           //println(s"Updating Map : ${(System.nanoTime() - updatingMap)/1_000_00}")
 //          println(".")
+          JpanelUpdate(x, y)
           start()
         }
       }
@@ -118,6 +159,7 @@ object imageBuilder extends App {
     def print(): Unit = {
       board.foreach(row => println(row.map(x => x.map(r => (r.name.getName, r.rotate))).toList))
     }
+   
   }
 
   //main
