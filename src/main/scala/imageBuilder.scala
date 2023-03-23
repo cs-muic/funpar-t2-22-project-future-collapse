@@ -1,19 +1,16 @@
 import database.*
 import java.io.File
-import scala.collection.mutable
-import scala.collection.mutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.Random
 import java.util.concurrent.ConcurrentHashMap
-import scala.concurrent.Future
 
 object imageBuilder extends App {
 
   type Point = (Int, Int)
 
-  case class Board(x: Int, y: Int, p: Set[Image]) {
+  case class Board(x: Int, y: Int, p: Set[Tile]) {
     val Xlen = x
     val Ylen = y
     val board = Array.fill(y)(Array.fill(x)(p));
@@ -40,8 +37,8 @@ object imageBuilder extends App {
       if (valid(x, y)) (board(x)(y).size == 1) else false
     }
 
-    def updateHelper(nbrSet: Set[Image], current: Set[Image], dir: String): Set[Image] = {
-      val newNbrArray: Array[Set[Image]] = Array.fill(current.size)(Set())
+    def updateHelper(nbrSet: Set[Tile], current: Set[Tile], dir: String): Set[Tile] = {
+      val newNbrArray: Array[Set[Tile]] = Array.fill(current.size)(Set())
       for ((c, idx) <- current.zipWithIndex) {
         val ok = c.nbrs.get(dir)
         newNbrArray(idx) = nbrSet.filter(i => ok.get.contains(i))
@@ -56,22 +53,27 @@ object imageBuilder extends App {
       val nbrDown = if (valid(x + 1, y) && !complete(x + 1, y)) Some(board(x + 1)(y)) else None
       val nbrLeft = if (valid(x, y - 1) && !complete(x, y - 1)) Some(board(x)(y - 1)) else None
 
-      val thread1 = new Thread {
-        override def run(): Unit = if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
-      }
-      val thread2 = new Thread {
-        override def run(): Unit = if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
-      }
-      val thread3 = new Thread {
-        override def run(): Unit = if (nbrDown != None) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
-      }
-      val thread4 = new Thread {
-        override def run(): Unit = if (nbrLeft != None) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
-      }
+//      val thread1 = new Thread {
+//        override def run(): Unit = if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
+//      }
+//      val thread2 = new Thread {
+//        override def run(): Unit = if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
+//      }
+//      val thread3 = new Thread {
+//        override def run(): Unit = if (nbrDown != None) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
+//      }
+//      val thread4 = new Thread {
+//        override def run(): Unit = if (nbrLeft != None) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
+//      }
+//
+//      val threads = List(thread1, thread2, thread3, thread4)
+//      threads.foreach(_.start())
+//      threads.foreach(_.join())
 
-      val threads = List(thread1, thread2, thread3, thread4)
-      threads.foreach(_.start())
-      threads.foreach(_.join())
+      if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
+      if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
+      if (nbrDown != None) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
+      if (nbrLeft != None) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
 
       ((x - 1, y), (x, y + 1), (x + 1, y), (x, y + 1))
     }
@@ -83,27 +85,31 @@ object imageBuilder extends App {
           if (v.containsKey(nbr)) () else {
             val nbrSq: List[Point] = updateNbrs(nbr._1, nbr._2).toList
             v.put(nbr, 1)
-            nbrSq.foreach(x => updateLoop(x, v))
+            nbrSq.map(x => updateLoop(x, v))
           }
         }
       }
     }
 
     def start(): Unit = {
+      val pickS = System.nanoTime()
       val st = pick()
+      //println(s"Pick : ${(System.nanoTime() - pickS)/1_000}")
       st match {
         case None => ()
         case Some((x, y)) => {
           val current = board(x)(y).toArray
           val random = new Random
           board(x)(y) = Set(current(random.nextInt(current.size)))
+          val findNbrs = System.nanoTime()
           val nbrs: List[Point] = updateNbrs(x, y).toList
+          //println(s"Finding nbrs : ${(System.nanoTime() - findNbrs)/1_000}")
           val visitedMap = new ConcurrentHashMap[Point, Int]()
-          val threads = nbrs.map(p => new Thread {
-            override def run(): Unit = updateLoop(p, visitedMap)
-          })
-          threads.foreach(_.start())
-          threads.foreach(_.join())
+          val updatingMap = System.nanoTime()
+          val futures : Seq[Future[Unit]] = nbrs.map(p => Future { updateLoop(p, visitedMap)})
+          Await.result(Future.sequence(futures),Duration.Inf)
+          //println(s"Updating Map : ${(System.nanoTime() - updatingMap)/1_000_00}")
+//          println(".")
           start()
         }
       }
@@ -115,7 +121,8 @@ object imageBuilder extends App {
   }
 
   //main
-  val board = new Board(15, 15, perms)
-  board.start()
-  board.print()
+//  val board = new Board(50, 50, perms)
+//  val t = System.nanoTime()
+//  board.start()
+//  println(s"${(System.nanoTime() - t)/1_000_000_000}" + " s")
 }
