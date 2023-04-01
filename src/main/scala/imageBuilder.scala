@@ -58,10 +58,8 @@ object imageBuilder extends App {
     }
 
     def updateHelper(nbrSet: Set[Tile], current: Set[Tile], dir: String): Set[Tile] = {
-      val newNbrSet: Set[Tile] = nbrSet
       val nbrsCurrent: Set[Tile] = current.flatMap(_.nbrs(dir))
-      val results = newNbrSet.intersect(nbrsCurrent)
-      results
+      nbrSet.intersect(nbrsCurrent)
     }
 
     def updateNbrs(x: Int, y: Int): (Point, Point, Point, Point) = {
