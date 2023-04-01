@@ -58,12 +58,14 @@ object imageBuilder extends App {
     }
 
     def updateHelper(nbrSet: Set[Tile], current: Set[Tile], dir: String): Set[Tile] = {
-      val newNbrArray: Array[Set[Tile]] = Array.fill(current.size)(Set())
-      for ((c, idx) <- current.zipWithIndex) {
-        val ok = c.nbrs.get(dir)
-        newNbrArray(idx) = nbrSet.filter(i => ok.get.contains(i))
+      val newNbrSet: mutable.HashSet[Tile] = mutable.HashSet.empty
+      val nbrsCurrent: mutable.HashSet[Tile] = mutable.HashSet.empty
+      for (c <- current) {
+        nbrsCurrent.addAll(c.nbrs(dir))
+        newNbrSet.addAll(nbrSet)
       }
-      newNbrArray.toSet.flatten
+      val results = newNbrSet.intersect(nbrsCurrent)
+      results.toSet
     }
 
     def updateNbrs(x: Int, y: Int): (Point, Point, Point, Point) = {
