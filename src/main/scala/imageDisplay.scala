@@ -47,40 +47,6 @@ object imageDisplay extends App{
     ImageIO.write(combinedImage, "png", new File(outputFilePath))
     println(outputFilePath)
   }
-
-  def compressImage2(board: Board, outputFilePath: String): Unit = {
-    val allImages = board.board
-    val height = allImages.length * 64
-    val width = allImages(0).length * 64
-
-    val futures: Seq[Future[BufferedImage]] = allImages.map(row => Future{ writeImage(row, width) })
-    val arrayBuffer = Await.result(Future.sequence(futures), Duration.Inf)
-
-    val combinedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-    val pixels = combinedImage.createGraphics()
-  }
-
-  def writeImage(images: Array[Set[Tile]], width: Int): BufferedImage = {
-    val combinedImage = new BufferedImage(width, 64, BufferedImage.TYPE_INT_ARGB)
-    val pixels = combinedImage.createGraphics()
-    for (image <- images) {
-      var readImage = ImageIO.read(image.head.name)
-      val rotation = image.head.rotate
-      var count = 0
-      if (rotation > 0) {
-        val radians = Math.toRadians(rotation * 90)
-        val x = readImage.getWidth() / 2
-        val y = readImage.getHeight() / 2
-        val tx = AffineTransform.getRotateInstance(radians, x, y)
-        val op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BILINEAR)
-        readImage = op.filter(readImage, null)
-      }
-      pixels.drawImage(readImage, count, 0, null)
-      count += 64
-    }
-    pixels.dispose()
-    combinedImage
-  }
   
   val file = new File("C:\\Users\\Admin\\Documents\\funpar-t2-22-project-future-collapse-master\\funpar-t2-22-project-future-collapse-master\\tileSet")
   val x = loadImage(file)
