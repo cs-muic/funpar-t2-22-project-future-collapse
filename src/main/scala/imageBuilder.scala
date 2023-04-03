@@ -16,9 +16,10 @@ import scala.concurrent.{Await, Future}
 import scala.util.Random
 
 
-object imageBuilder extends App {
+object imageBuilder {
 
   type Point = (Int, Int)
+  val dim = 64
 
   case class Board(x: Int, y: Int, p: Set[Tile]) {
     private val Xlen = x
@@ -27,8 +28,8 @@ object imageBuilder extends App {
     var frame = new JFrame("Project Future{Collapse}: Wave Collapse Function")
     var panel = new JPanel()
     panel.setBackground(Color.darkGray)
-    frame.setSize(x * 64, y * 64)
-    panel.setSize(x * 64, y * 64)
+    frame.setSize(x * dim, y * dim)
+    panel.setSize(x * dim, y * dim)
     panel.setLayout(null)
     panel.setBorder(null)
     frame.add(panel)
@@ -69,22 +70,22 @@ object imageBuilder extends App {
       val nbrDown = if (valid(x + 1, y) && !complete(x + 1, y)) Some(board(x + 1)(y)) else None
       val nbrLeft = if (valid(x, y - 1) && !complete(x, y - 1)) Some(board(x)(y - 1)) else None
 
-//      val thread1 = new Thread {
-//        override def run(): Unit = if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
-//      }
-//      val thread2 = new Thread {
-//        override def run(): Unit = if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
-//      }
-//      val thread3 = new Thread {
-//        override def run(): Unit = if (nbrDown != None) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
-//      }
-//      val thread4 = new Thread {
-//        override def run(): Unit = if (nbrLeft != None) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
-//      }
-//
-//      val threads = List(thread1, thread2, thread3, thread4)
-//      threads.foreach(_.start())
-//      threads.foreach(_.join())
+      //      val thread1 = new Thread {
+      //        override def run(): Unit = if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
+      //      }
+      //      val thread2 = new Thread {
+      //        override def run(): Unit = if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
+      //      }
+      //      val thread3 = new Thread {
+      //        override def run(): Unit = if (nbrDown != None) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
+      //      }
+      //      val thread4 = new Thread {
+      //        override def run(): Unit = if (nbrLeft != None) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
+      //      }
+      //
+      //      val threads = List(thread1, thread2, thread3, thread4)
+      //      threads.foreach(_.start())
+      //      threads.foreach(_.join())
 
       if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
       if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
@@ -106,7 +107,7 @@ object imageBuilder extends App {
         }
       }
     }
-    
+
     def JpanelUpdate(x: Int, y: Int): Unit = {
       val readImage = ImageIO.read(board(x)(y).head.name)
       val x_pos: Int = readImage.getWidth() / 2
@@ -121,7 +122,7 @@ object imageBuilder extends App {
       val labelWidth = rotatedIcon.getIconWidth
       val labelHeight = rotatedIcon.getIconHeight
       label.setSize(labelWidth, labelHeight)
-      label.setLocation(y * 64, x * 64)
+      label.setLocation(y * dim, x * dim)
       panel.add(label)
       panel.revalidate()
       panel.repaint()
@@ -142,10 +143,12 @@ object imageBuilder extends App {
           //println(s"Finding nbrs : ${(System.nanoTime() - findNbrs)/1_000}")
           val visitedMap = new ConcurrentHashMap[Point, Int]()
           val updatingMap = System.nanoTime()
-          val futures : Seq[Future[Unit]] = nbrs.map(p => Future { updateLoop(p, visitedMap)})
-          Await.result(Future.sequence(futures),Duration.Inf)
+          val futures: Seq[Future[Unit]] = nbrs.map(p => Future {
+            updateLoop(p, visitedMap)
+          })
+          Await.result(Future.sequence(futures), Duration.Inf)
           //println(s"Updating Map : ${(System.nanoTime() - updatingMap)/1_000_00}")
-//          println(".")
+          //          println(".")
           JpanelUpdate(x, y)
           start()
         }
@@ -155,12 +158,5 @@ object imageBuilder extends App {
     def print(): Unit = {
       board.foreach(row => println(row.map(x => x.map(r => (r.name.getName, r.rotate))).toList))
     }
-   
   }
-
-  //main
-//  val board = new Board(50, 50, perms)
-//  val t = System.nanoTime()
-//  board.start()
-//  println(s"${(System.nanoTime() - t)/1_000_000_000}" + " s")
 }
