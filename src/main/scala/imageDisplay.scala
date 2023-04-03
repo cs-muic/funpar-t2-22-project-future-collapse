@@ -11,12 +11,14 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
-object imageDisplay extends App{
+object imageDisplay {
+  
+  val dim = 64
 
   def compressImage(board: Board, outputFilePath: String): Unit = {
     val allImages = board.board
-    val height = allImages.length * 64
-    val width = allImages(0).length * 64
+    val height = allImages.length * dim
+    val width = allImages(0).length * dim
     val Images = allImages.flatten
 
     val combinedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
@@ -37,10 +39,10 @@ object imageDisplay extends App{
         readImage = op.filter(readImage, null)
       }
       pixels.drawImage(readImage, countX, countY, null)
-      countX += 64
+      countX += dim
       if (countX >= width) {
         countX = 0
-        countY += 64
+        countY += dim
       }
     }
     pixels.dispose()
@@ -48,13 +50,13 @@ object imageDisplay extends App{
     println(outputFilePath)
   }
   
-  val file = new File("C:\\Users\\Admin\\Documents\\funpar-t2-22-project-future-collapse-master\\funpar-t2-22-project-future-collapse-master\\tileSet")
-  val x = loadImage(file)
-  val perms = allPerm(x)
-  updateNbrs(perms)
-
-  val board = Board(30, 30, perms)
-  board.start()
-  val outputFilePath = "C:\\Users\\Admin\\Documents\\funpar-t2-22-project-future-collapse-master\\funpar-t2-22-project-future-collapse-master\\testOutput\\image-test.png"
-  compressImage(board, outputFilePath)
+//  val file = new File("/Users/nathans./Documents/FunPar/Project_Final/tileSet")
+//  val x = loadImage(file)
+//  val perms = allPerm(x)
+//  updateNbrs(perms)
+//
+//  val board = Board(20, 20, perms)
+//  board.start()
+//  val outputFilePath = "/Users/nathans./Documents/FunPar/Project_Final/output"
+//  compressImage(board, outputFilePath)
 }
