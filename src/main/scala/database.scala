@@ -6,7 +6,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-object database extends App {
+object database {
   case class Tile(filename: File, colorDirection: Array[String], rotation: Int) {
     val name: File = filename
     val up: String = colorDirection(0)
@@ -80,4 +80,3 @@ object database extends App {
   val perms = allPerm(x)
   updateNbrs(perms)
 }
-
