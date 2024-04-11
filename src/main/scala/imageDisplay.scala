@@ -1,20 +1,22 @@
-import imageBuilder.*
-import database.*
+import database._
+import imageBuilder._
+
 import java.awt.Graphics2D
-import java.awt.image.BufferedImage
-import javax.swing.JPanel
+import java.awt.geom.AffineTransform
+import java.awt.image.{AffineTransformOp, BufferedImage}
 import java.io.File
 import javax.imageio.ImageIO
-import java.awt.geom.AffineTransform
-import java.awt.image.AffineTransformOp
-import scala.concurrent.{Await, Future}
+import javax.swing.JPanel
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 object imageDisplay {
-  
-  val dim = 64
 
+  val dim = 64
+  /*
+  Save the output of the wave function collapse as an png file.
+   */
   def compressImage(board: Board, outputFilePath: String): Unit = {
     val allImages = board.board
     val height = allImages.length * dim
@@ -24,39 +26,25 @@ object imageDisplay {
     val combinedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
     val pixels = combinedImage.createGraphics()
 
-    var countX = 0
-    var countY = 0
-    for (image <- Images) {
+    Images.zipWithIndex.map { case (image, i) =>
+      val x = (i % allImages(0).length) * dim
+      val y = (i / allImages(0).length) * dim
       var readImage = ImageIO.read(image.head.name)
       val rotation = image.head.rotate
 
       if (rotation > 0) {
         val radians = Math.toRadians(rotation * 90)
-        val x = readImage.getWidth() / 2
-        val y = readImage.getHeight() / 2
-        val tx = AffineTransform.getRotateInstance(radians, x, y)
+        val tx = AffineTransform.getRotateInstance(radians, readImage.getWidth / 2, readImage.getHeight / 2)
         val op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BILINEAR)
         readImage = op.filter(readImage, null)
       }
-      pixels.drawImage(readImage, countX, countY, null)
-      countX += dim
-      if (countX >= width) {
-        countX = 0
-        countY += dim
-      }
+      (readImage, x, y)
+    }.foreach { case (readImage, x, y) =>
+      pixels.drawImage(readImage, x, y, null)
     }
+
     pixels.dispose()
     ImageIO.write(combinedImage, "png", new File(outputFilePath))
     println(outputFilePath)
   }
-  
-//  val file = new File("/Users/nathans./Documents/FunPar/Project_Final/tileSet")
-//  val x = loadImage(file)
-//  val perms = allPerm(x)
-//  updateNbrs(perms)
-//
-//  val board = Board(20, 20, perms)
-//  board.start()
-//  val outputFilePath = "/Users/nathans./Documents/FunPar/Project_Final/output"
-//  compressImage(board, outputFilePath)
 }

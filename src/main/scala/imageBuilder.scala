@@ -1,5 +1,6 @@
 import database.{Tile, allPerm, loadImage, updateNbrs}
 import imageDisplay.*
+
 import java.awt.*
 import java.awt.geom.AffineTransform
 import java.awt.image.{AffineTransformOp, BufferedImage}
@@ -15,18 +16,17 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.Random
 
-
 object imageBuilder {
 
-  type Point = (Int, Int)
+  private type Point = (Int, Int)
   val dim = 64
 
   case class Board(x: Int, y: Int, p: Set[Tile]) {
     private val Xlen = x
     private val Ylen = y
     val board: Array[Array[Set[Tile]]] = Array.fill(y)(Array.fill(x)(p))
-    var frame = new JFrame("Project Future{Collapse}: Wave Collapse Function")
-    var panel = new JPanel()
+    private val frame = new JFrame("Project Future{Collapse}: Wave Collapse Function")
+    private val panel = new JPanel()
     panel.setBackground(Color.darkGray)
     frame.setSize(x * dim, y * dim)
     panel.setSize(x * dim, y * dim)
@@ -36,7 +36,11 @@ object imageBuilder {
     frame.setResizable(true)
     frame.setVisible(true)
 
-    def pick(): Option[(Int, Int)] = {
+    /*
+    Function to choose the lowest entropy tile in the board
+     */
+
+    private def pick(): Option[(Int, Int)] = {
       var smallest: Option[(Int, Int)] = None
       var minVal = Int.MaxValue
       for (i <- board.indices; j <- board(i).indices) {
@@ -48,67 +52,67 @@ object imageBuilder {
       smallest
     }
 
-    def valid(x: Int, y: Int): Boolean = (x, y) match {
+    /*
+    Function to check whether the given position is within the boundary of the board.
+     */
+
+    private def valid(x: Int, y: Int): Boolean = (x, y) match {
       case (i, j) if i < 0 || j < 0 => false
       case (i, j) if i >= Ylen || j >= Xlen => false
       case _ => true
     }
 
-    def complete(x: Int, y: Int): Boolean = {
-      if (valid(x, y)) (board(x)(y).size == 1) else false
+    /*
+    Function to check whether the given position has been placed.
+     */
+    private def complete(x: Int, y: Int): Boolean = {
+      if (valid(x, y)) board(x)(y).size == 1 else false
     }
 
-    def updateHelper(nbrSet: Set[Tile], current: Set[Tile], dir: String): Set[Tile] = {
+    /*
+    Helper function of updateNbrs to update the neighbors of the current tile.
+     */
+    private def updateHelper(nbrSet: Set[Tile], current: Set[Tile], dir: String): Set[Tile] = {
       val nbrsCurrent: Set[Tile] = current.flatMap(_.nbrs(dir))
       nbrSet.intersect(nbrsCurrent)
     }
 
+    /*
+    Function to update the neighbors of the current tile.
+     */
     def updateNbrs(x: Int, y: Int): (Point, Point, Point, Point) = {
       val current = board(x)(y)
       val nbrUp = if (valid(x - 1, y) && !complete(x - 1, y)) Some(board(x - 1)(y)) else None
       val nbrRight = if (valid(x, y + 1) && !complete(x, y + 1)) Some(board(x)(y + 1)) else None
       val nbrDown = if (valid(x + 1, y) && !complete(x + 1, y)) Some(board(x + 1)(y)) else None
       val nbrLeft = if (valid(x, y - 1) && !complete(x, y - 1)) Some(board(x)(y - 1)) else None
-
-      //      val thread1 = new Thread {
-      //        override def run(): Unit = if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
-      //      }
-      //      val thread2 = new Thread {
-      //        override def run(): Unit = if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
-      //      }
-      //      val thread3 = new Thread {
-      //        override def run(): Unit = if (nbrDown != None) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
-      //      }
-      //      val thread4 = new Thread {
-      //        override def run(): Unit = if (nbrLeft != None) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
-      //      }
-      //
-      //      val threads = List(thread1, thread2, thread3, thread4)
-      //      threads.foreach(_.start())
-      //      threads.foreach(_.join())
-
-      if (nbrUp != None) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
-      if (nbrRight != None) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
-      if (nbrDown != None) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
-      if (nbrLeft != None) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
-
+      if (nbrUp.isDefined) board(x - 1)(y) = updateHelper(nbrUp.get, current, "up")
+      if (nbrRight.isDefined) board(x)(y + 1) = updateHelper(nbrRight.get, current, "right")
+      if (nbrDown.isDefined) board(x + 1)(y) = updateHelper(nbrDown.get, current, "down")
+      if (nbrLeft.isDefined) board(x)(y - 1) = updateHelper(nbrLeft.get, current, "left")
       ((x - 1, y), (x, y + 1), (x + 1, y), (x, y + 1))
     }
 
-    def updateLoop(nbr: Point, v: ConcurrentHashMap[Point, Int]): Unit = !valid(nbr._1, nbr._2) match {
+    /*
+    Function to update the board based on the wave function collapse algorithm.
+     */
+    private def updateLoop(nbr: Point, v: ConcurrentHashMap[Point, Int]): Unit = !valid(nbr._1, nbr._2) match {
       case true => ()
-      case false => {
+      case false =>
         if (v.size == Xlen * Ylen) () else {
           if (v.containsKey(nbr)) () else {
-            val nbrSq: List[Point] = updateNbrs(nbr._1, nbr._2).toList
+            val nbrsTuple = updateNbrs(nbr._1, nbr._2)
+            val nbrSq: List[Point] = List(nbrsTuple._1, nbrsTuple._2, nbrsTuple._3, nbrsTuple._4)
             v.put(nbr, 1)
-            nbrSq.map(x => updateLoop(x, v))
+            nbrSq.foreach(x => updateLoop(x, v))
           }
         }
-      }
     }
 
-    def JpanelUpdate(x: Int, y: Int): Unit = {
+    /*
+    Function to display the updated board on the JPanel.
+     */
+    private def JpanelUpdate(x: Int, y: Int): Unit = {
       val readImage = ImageIO.read(board(x)(y).head.name)
       val x_pos: Int = readImage.getWidth() / 2
       val y_pos: Int = readImage.getHeight() / 2
@@ -128,33 +132,35 @@ object imageBuilder {
       panel.repaint()
     }
 
+    /*
+    Function to start the wave function collapse algorithm.
+     */
     def start(): Unit = {
       val pickS = System.nanoTime()
       val st = pick()
-      //println(s"Pick : ${(System.nanoTime() - pickS)/1_000}")
       st match {
         case None => ()
-        case Some((x, y)) => {
+        case Some((x, y)) =>
           val current = board(x)(y).toArray
           val random = new Random
-          board(x)(y) = Set(current(random.nextInt(current.size)))
+          board(x)(y) = Set(current(random.nextInt(current.length)))
           val findNbrs = System.nanoTime()
-          val nbrs: List[Point] = updateNbrs(x, y).toList
-          //println(s"Finding nbrs : ${(System.nanoTime() - findNbrs)/1_000}")
+          val nbrsTuple = updateNbrs(x, y)
+          val nbrs: List[Point] = List(nbrsTuple._1, nbrsTuple._2, nbrsTuple._3, nbrsTuple._4)
           val visitedMap = new ConcurrentHashMap[Point, Int]()
           val updatingMap = System.nanoTime()
           val futures: Seq[Future[Unit]] = nbrs.map(p => Future {
             updateLoop(p, visitedMap)
           })
           Await.result(Future.sequence(futures), Duration.Inf)
-          //println(s"Updating Map : ${(System.nanoTime() - updatingMap)/1_000_00}")
-          //          println(".")
           JpanelUpdate(x, y)
           start()
-        }
       }
     }
 
+    /*
+    Function to display the board.
+     */
     def print(): Unit = {
       board.foreach(row => println(row.map(x => x.map(r => (r.name.getName, r.rotate))).toList))
     }

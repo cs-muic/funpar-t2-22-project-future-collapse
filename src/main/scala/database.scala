@@ -1,7 +1,5 @@
 import java.io.File
-import scala.collection.immutable.List
 import scala.collection.mutable
-import scala.collection.mutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -25,7 +23,6 @@ object database {
   def loadImage(dirName: File): Array[Tile] = {
     val file = dirName.listFiles.sorted
     val imgArr: Array[Tile] = new Array[Tile](file.length)
-
     imgArr(0) = Tile(file(0), Array("000", "000", "000", "000"), 0)
     imgArr(1) = Tile(file(1), Array("101", "101", "101", "101"), 0)
     imgArr(2) = Tile(file(2), Array("111", "101", "111", "101"), 0)
@@ -43,6 +40,9 @@ object database {
     imgArr
   }
 
+  /*
+  Function to generate all rotations of each tiles if possible.
+   */
   def allPerm(imgArr: Array[Tile]): Set[Tile] = {
     val futures = imgArr.map(img =>
       Future {
@@ -61,8 +61,10 @@ object database {
     )
     Await.result(Future.sequence(futures.toSet), Duration.Inf).flatten
   }
-
-  def updateNbrsHelper(allImages: Set[Tile], img: Tile): Unit = {
+  /*
+  Function to update the neighbors of each tile.
+   */
+  private def updateNbrsHelper(allImages: Set[Tile], img: Tile): Unit = {
     val newNbrs = mutable.HashMap[String, Set[Tile]]()
     newNbrs.put("up", allImages.filter(i => i.down.equals(img.up.reverse)))
     newNbrs.put("down", allImages.filter(i => i.up.equals(img.down.reverse)))
@@ -70,13 +72,18 @@ object database {
     newNbrs.put("left", allImages.filter(i => i.right.equals(img.left.reverse)))
     img.nbrs = newNbrs
   }
+  /*
+  Function to update the neighbors of all tiles.
+   */
   def updateNbrs(allImages: Set[Tile]): Unit = {
-    val futures = for (i <- allImages) yield Future { updateNbrsHelper(allImages.toSet, i) }
+    val futures = for (i <- allImages) yield Future {
+      updateNbrsHelper(allImages, i)
+    }
     Await.result(Future.sequence(futures), Duration.Inf)
   }
 
-  val file = new File("/Users/nathans./Documents/FunPar/funpar-t2-22-project-future-collapse-master/tileSet")
-  val x = loadImage(file)
-  val perms = allPerm(x)
+  val file = new File("C:\\Users\\MIS\\Documents\\funpar-t2-22-project-future-collapse\\tileSet")
+  val x: Array[Tile] = loadImage(file)
+  val perms: Set[Tile] = allPerm(x)
   updateNbrs(perms)
 }
